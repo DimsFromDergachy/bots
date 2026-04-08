@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  bible-bot:
+    build: .
+    container_name: bible-bot
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - TELEGRAM_STORAGE_CHAT_ID=${TELEGRAM_STORAGE_CHAT_ID}
+      - ADMIN_USER=${ADMIN_USER:-admin}
+      - ADMIN_PASS=${ADMIN_PASS:-changeme}
+      - SESSION_SECRET=${SESSION_SECRET:-your-secret-key-change-this}
+      - TZ=${TZ:-Europe/Moscow}
+      - SEND_HOUR=${SEND_HOUR:-9}
+    ports:
+      - "127.0.0.1:8080:8080"

@@ -1,0 +1,213 @@
+package admin
+
+import (
+    "fmt"
+    "html/template"
+    "net/http"
+    "strconv"
+    
+    "github.com/go-chi/chi/v5"
+    "github.com/gorilla/sessions"
+    "golang.org/x/crypto/bcrypt"
+    
+    "github.com/DimsFromDergachy/bots/internal/bot"
+    "github.com/DimsFromDergachy/bots/internal/db"
+)
+
+type Admin struct {
+    db      *db.DB
+    bot     *bot.Bot
+    store   *sessions.CookieStore
+    templates *template.Template
+    username string
+    password string
+}
+
+func New(db *db.DB, bot *bot.Bot, sessionSecret, username, password string) (*Admin, error) {
+    // Create default admin if not exists
+    if username != "" && password != "" {
+        hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+        db.Exec("INSERT OR IGNORE INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
+    }
+    
+    templates := template.Must(template.ParseGlob("templates/*.html"))
+    
+    return &Admin{
+        db:        db,
+        bot:       bot,
+        store:     sessions.NewCookieStore([]byte(sessionSecret)),
+        templates: templates,
+        username:  username,
+        password:  password,
+    }, nil
+}
+
+func (a *Admin) Routes() chi.Router {
+    r := chi.NewRouter()
+    
+    // Public
+    r.Get("/login", a.LoginPage)
+    r.Post("/login", a.Login)
+    r.Get("/logout", a.Logout)
+    
+    // Protected
+    r.Group(func(r chi.Router) {
+        r.Use(a.AuthMiddleware)
+        r.Get("/", a.Calendar)
+        r.Get("/edit/{month}/{day}", a.EditPage)
+        r.Post("/edit/{month}/{day}", a.SaveMessage)
+        r.Post("/upload/{month}/{day}", a.UploadImage)
+    })
+    
+    return r
+}
+
+func (a *Admin) AuthMiddleware(next http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        session, _ := a.store.Get(r, "bible-bot")
+        if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+            http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+            return
+        }
+        next.ServeHTTP(w, r)
+    })
+}
+
+func (a *Admin) LoginPage(w http.ResponseWriter, r *http.Request) {
+    a.templates.ExecuteTemplate(w, "login.html", nil)
+}
+
+func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
+    username := r.FormValue("username")
+    password := r.FormValue("password")
+    
+    var hash string
+    err := a.db.QueryRow("SELECT password_hash FROM users WHERE username=?", username).Scan(&hash)
+    if err != nil {
+        http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+        return
+    }
+    
+    if bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) != nil {
+        http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+        return
+    }
+    
+    session, _ := a.store.Get(r, "bible-bot")
+    session.Values["authenticated"] = true
+    session.Save(r, w)
+    
+    http.Redirect(w, r, "/admin/", http.StatusSeeOther)
+}
+
+func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
+    session, _ := a.store.Get(r, "bible-bot")
+    session.Values["authenticated"] = false
+    session.Save(r, w)
+    http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
+}
+
+func (a *Admin) Calendar(w http.ResponseWriter, r *http.Request) {
+    messages, err := a.db.GetAllMessages()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // Group by month
+    calendar := make(map[int][]db.DailyMessage)
+    for _, msg := range messages {
+        calendar[msg.Month] = append(calendar[msg.Month], msg)
+    }
+    
+    data := struct {
+        Calendar map[int][]db.DailyMessage
+        Months   []string
+    }{
+        Calendar: calendar,
+        Months:   []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"},
+    }
+    
+    a.templates.ExecuteTemplate(w, "calendar.html", data)
+}
+
+func (a *Admin) EditPage(w http.ResponseWriter, r *http.Request) {
+    month, _ := strconv.Atoi(chi.URLParam(r, "month"))
+    day, _ := strconv.Atoi(chi.URLParam(r, "day"))
+    
+    msg, err := a.db.GetMessage(month, day)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    data := struct {
+        Message *db.DailyMessage
+        Month   int
+        Day     int
+    }{
+        Message: msg,
+        Month:   month,
+        Day:     day,
+    }
+    
+    a.templates.ExecuteTemplate(w, "edit.html", data)
+}
+
+func (a *Admin) SaveMessage(w http.ResponseWriter, r *http.Request) {
+    month, _ := strconv.Atoi(chi.URLParam(r, "month"))
+    day, _ := strconv.Atoi(chi.URLParam(r, "day"))
+    
+    text := r.FormValue("text")
+    
+    // Keep existing image
+    msg, _ := a.db.GetMessage(month, day)
+    fileID := ""
+    imageURL := ""
+    if msg != nil {
+        fileID = msg.ImageFileID
+        imageURL = msg.ImageURL
+    }
+    
+    if err := a.db.UpdateMessage(month, day, text, fileID, imageURL); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    http.Redirect(w, r, "/admin/", http.StatusSeeOther)
+}
+
+func (a *Admin) UploadImage(w http.ResponseWriter, r *http.Request) {
+    month, _ := strconv.Atoi(chi.URLParam(r, "month"))
+    day, _ := strconv.Atoi(chi.URLParam(r, "day"))
+    
+    file, header, err := r.FormFile("image")
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    defer file.Close()
+    
+    // Upload to Telegram storage
+    fileID, err := a.bot.UploadImage(file, header.Filename)
+    if err != nil {
+        http.Error(w, fmt.Sprintf("Upload failed: %v", err), http.StatusInternalServerError)
+        return
+    }
+    
+    // Update message
+    msg, _ := a.db.GetMessage(month, day)
+    text := ""
+    if msg != nil {
+        text = msg.Text
+    }
+    
+    if err := a.db.UpdateMessage(month, day, text, fileID, ""); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // Return JSON for HTMX
+    w.Header().Set("Content-Type", "application/json")
+    fmt.Fprintf(w, `{"file_id":"%s"}`, fileID)
+}
