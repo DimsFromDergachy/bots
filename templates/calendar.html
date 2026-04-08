@@ -7,23 +7,27 @@
 </div>
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    {{range $month := .Months}}
-        {{if $month}}
+    {{range $monthNum := .MonthNumbers}}
+        {{$monthName := index $.MonthNames $monthNum}}
+        {{if $monthName}}
         <div class="bg-white rounded-lg shadow overflow-hidden">
             <div class="bg-gray-50 px-4 py-2 border-b">
-                <h2 class="font-semibold text-gray-700">{{$month}}</h2>
+                <h2 class="font-semibold text-gray-700">{{$monthName}}</h2>
             </div>
             <div class="p-4">
+                <div class="grid grid-cols-7 gap-1 text-center text-xs text-gray-500 mb-2">
+                    <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div>
+                    <div>Fri</div><div>Sat</div><div>Sun</div>
+                </div>
                 <div class="grid grid-cols-7 gap-1">
-                    {{range index $.Calendar (len $.Calendar | add 1)}}
-                        {{if .}}
+                    {{$messages := index $.MessagesByMonth $monthNum}}
+                    {{range $messages}}
                         <a href="/admin/edit/{{.Month}}/{{.Day}}" 
-                           class="aspect-square flex items-center justify-center rounded 
-                                  {{if .Text}}bg-green-100 hover:bg-green-200 text-green-800{{else}}bg-gray-50 hover:bg-gray-100 text-gray-600{{end}}
-                                  text-sm font-medium transition">
+                           class="aspect-square flex items-center justify-center rounded text-sm
+                                  {{if .Text}}bg-green-100 hover:bg-green-200 text-green-800
+                                  {{else}}bg-gray-50 hover:bg-gray-100 text-gray-600{{end}}">
                             {{.Day}}
                         </a>
-                        {{end}}
                     {{end}}
                 </div>
             </div>

@@ -115,17 +115,27 @@ func (a *Admin) Calendar(w http.ResponseWriter, r *http.Request) {
     }
     
     // Group by month
-    calendar := make(map[int][]db.DailyMessage)
+    messagesByMonth := make(map[int][]db.DailyMessage)
     for _, msg := range messages {
-        calendar[msg.Month] = append(calendar[msg.Month], msg)
+        messagesByMonth[msg.Month] = append(messagesByMonth[msg.Month], msg)
     }
     
+    monthNames := []string{
+        "", 
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December",
+    }
+    
+    monthNumbers := []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+    
     data := struct {
-        Calendar map[int][]db.DailyMessage
-        Months   []string
+        MessagesByMonth map[int][]db.DailyMessage
+        MonthNames      []string
+        MonthNumbers    []int
     }{
-        Calendar: calendar,
-        Months:   []string{"", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"},
+        MessagesByMonth: messagesByMonth,
+        MonthNames:      monthNames,
+        MonthNumbers:    monthNumbers,
     }
     
     a.templates.ExecuteTemplate(w, "calendar.html", data)

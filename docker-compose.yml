@@ -1,9 +1,7 @@
-version: '3.8'
-
 services:
-  bible-bot:
+  bots:
     build: .
-    container_name: bible-bot
+    container_name: bots
     restart: unless-stopped
     volumes:
       - ./data:/app/data
