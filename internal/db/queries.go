@@ -81,3 +81,65 @@ func (db *DB) MarkAsSent(month, day, year int) error {
     )
     return err
 }
+
+// Settings operations
+func (db *DB) GetSetting(key string) (string, error) {
+    var value string
+    err := db.QueryRow("SELECT value FROM settings WHERE key = ?", key).Scan(&value)
+    if err == sql.ErrNoRows {
+        return "", nil
+    }
+    return value, err
+}
+
+func (db *DB) GetSettings() (map[string]string, error) {
+    rows, err := db.Query("SELECT key, value FROM settings ORDER BY key")
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+    
+    settings := make(map[string]string)
+    for rows.Next() {
+        var key, value string
+        if err := rows.Scan(&key, &value); err != nil {
+            return nil, err
+        }
+        settings[key] = value
+    }
+    return settings, nil
+}
+
+func (db *DB) SetSetting(key, value string) error {
+    _, err := db.Exec(`
+        INSERT INTO settings (key, value) VALUES (?, ?)
+        ON CONFLICT(key) DO UPDATE SET 
+            value = excluded.value,
+            updated_at = CURRENT_TIMESTAMP`,
+        key, value,
+    )
+    return err
+}
+
+func (db *DB) SetSettings(settings map[string]string) error {
+    tx, err := db.Begin()
+    if err != nil {
+        return err
+    }
+    defer tx.Rollback()
+    
+    for key, value := range settings {
+        _, err := tx.Exec(`
+            INSERT INTO settings (key, value) VALUES (?, ?)
+            ON CONFLICT(key) DO UPDATE SET 
+                value = excluded.value,
+                updated_at = CURRENT_TIMESTAMP`,
+            key, value,
+        )
+        if err != nil {
+            return err
+        }
+    }
+    
+    return tx.Commit()
+}

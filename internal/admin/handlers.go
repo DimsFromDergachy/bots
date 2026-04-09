@@ -5,25 +5,28 @@ import (
     "html/template"
     "net/http"
     "strconv"
-    
+    "time"
+
     "github.com/go-chi/chi/v5"
     "github.com/gorilla/sessions"
     "golang.org/x/crypto/bcrypt"
-    
+
     "github.com/DimsFromDergachy/bots/internal/bot"
     "github.com/DimsFromDergachy/bots/internal/db"
+    "github.com/DimsFromDergachy/bots/internal/scheduler"
 )
 
 type Admin struct {
-    db      *db.DB
-    bot     *bot.Bot
-    store   *sessions.CookieStore
-    cache   map[string]*template.Template
-    username string
-    password string
+    db          *db.DB
+    bot         *bot.Bot
+    scheduler   *scheduler.Scheduler
+    store       *sessions.CookieStore
+    cache       map[string]*template.Template
+    username    string
+    password    string
 }
 
-func New(db *db.DB, bot *bot.Bot, sessionSecret, username, password string) (*Admin, error) {
+func New(db *db.DB, bot *bot.Bot, sched *scheduler.Scheduler, sessionSecret, username, password string) (*Admin, error) {
     // Create default admin if not exists
     if username != "" && password != "" {
         hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -36,6 +39,7 @@ func New(db *db.DB, bot *bot.Bot, sessionSecret, username, password string) (*Ad
         "login.html",
         "calendar.html",
         "edit.html",
+        "settings.html",
     }
 
     for _, page := range pages {
@@ -54,6 +58,7 @@ func New(db *db.DB, bot *bot.Bot, sessionSecret, username, password string) (*Ad
     return &Admin{
         db:        db,
         bot:       bot,
+        scheduler: sched,
         store:     store,
         cache:     cache,
         username:  username,
@@ -76,6 +81,9 @@ func (a *Admin) Routes() chi.Router {
         r.Get("/edit/{month}/{day}", a.EditPage)
         r.Post("/edit/{month}/{day}", a.SaveMessage)
         r.Post("/upload/{month}/{day}", a.UploadImage)
+        r.Get("/settings", a.SettingsPage)
+        r.Post("/settings", a.SaveSettings)
+        r.Post("/settings/test-send", a.TestSend)
     })
     
     return r
@@ -241,4 +249,118 @@ func (a *Admin) UploadImage(w http.ResponseWriter, r *http.Request) {
     // Return JSON for HTMX
     w.Header().Set("Content-Type", "application/json")
     fmt.Fprintf(w, `{"file_id":"%s"}`, fileID)
+}
+
+// Add handler methods:
+func (a *Admin) SettingsPage(w http.ResponseWriter, r *http.Request) {
+    settings, err := a.db.GetSettings()
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // Default values if not set
+    if settings["send_hour"] == "" {
+        settings["send_hour"] = "9"
+    }
+    if settings["send_minute"] == "" {
+        settings["send_minute"] = "0"
+    }
+    if settings["timezone"] == "" {
+        settings["timezone"] = "Europe/Moscow"
+    }
+    
+    // Get available timezones
+    timezones := getCommonTimezones()
+    
+    data := struct {
+        Settings  map[string]string
+        Timezones []TimezoneOption
+    }{
+        Settings:  settings,
+        Timezones: timezones,
+    }
+    
+    a.cache["settings.html"].ExecuteTemplate(w, "settings.html", data)
+}
+
+func (a *Admin) SaveSettings(w http.ResponseWriter, r *http.Request) {
+    if err := r.ParseForm(); err != nil {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+    
+    settings := map[string]string{
+        "send_hour":   r.FormValue("send_hour"),
+        "send_minute": r.FormValue("send_minute"),
+        "timezone":    r.FormValue("timezone"),
+    }
+    
+    // Validate
+    hour, _ := strconv.Atoi(settings["send_hour"])
+    if hour < 0 || hour > 23 {
+        settings["send_hour"] = "9"
+    }
+    
+    minute, _ := strconv.Atoi(settings["send_minute"])
+    if minute < 0 || minute > 59 {
+        settings["send_minute"] = "0"
+    }
+    
+    if err := a.db.SetSettings(settings); err != nil {
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+        return
+    }
+    
+    // Reload scheduler settings
+    if a.scheduler != nil {
+        a.scheduler.ReloadSettings()
+    }
+    
+    http.Redirect(w, r, "/admin/settings", http.StatusSeeOther)
+}
+
+type TimezoneOption struct {
+    Value string
+    Label string
+}
+
+func getCommonTimezones() []TimezoneOption {
+    return []TimezoneOption{
+        {"Europe/Moscow", "Moscow (UTC+3)"},
+        {"Europe/London", "London (UTC+0/+1)"},
+        {"Europe/Paris", "Paris (UTC+1/+2)"},
+        {"Europe/Kiev", "Kyiv (UTC+2/+3)"},
+        {"America/New_York", "New York (UTC-5/-4)"},
+        {"America/Chicago", "Chicago (UTC-6/-5)"},
+        {"America/Denver", "Denver (UTC-7/-6)"},
+        {"America/Los_Angeles", "Los Angeles (UTC-8/-7)"},
+        {"Asia/Jerusalem", "Jerusalem (UTC+2/+3)"},
+        {"UTC", "UTC"},
+    }
+}
+
+func (a *Admin) TestSend(w http.ResponseWriter, r *http.Request) {
+    now := time.Now()
+    month := int(now.Month())
+    day := now.Day()
+    
+    msg, err := a.db.GetMessage(month, day)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError)
+        fmt.Fprintf(w, "<span class='text-red-600'>Error: %v</span>", err)
+        return
+    }
+    
+    if msg == nil || msg.Text == "" {
+        fmt.Fprintf(w, "<span class='text-yellow-600'>No message configured for today</span>")
+        return
+    }
+    
+    if err := a.bot.SendDailyMessage(msg.Text, msg.ImageFileID); err != nil {
+        fmt.Fprintf(w, "<span class='text-red-600'>Failed to send: %v</span>", err)
+        return
+    }
+    
+    fmt.Fprintf(w, "<span class='text-green-600'>✓ Test message sent successfully!</span>")
 }

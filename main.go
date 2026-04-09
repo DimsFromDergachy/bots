@@ -43,12 +43,12 @@ func main() {
         log.Fatalf("Telegram bot error: %v", err)
     }
     
-    // Initialize scheduler
-    sched, err := scheduler.New(database, telegramBot, cfg.Timezone, cfg.SendHour, cfg.SendMinute)
+    // Initialize scheduler (simplified - no config needed)
+    sched, err := scheduler.New(database, telegramBot)
     if err != nil {
         log.Fatalf("Scheduler error: %v", err)
     }
-    
+
     // Context for graceful shutdown
     ctx, cancel := context.WithCancel(context.Background())
     defer cancel()
@@ -58,7 +58,7 @@ func main() {
     log.Printf("Scheduler started. Will send daily at %02d:%02d %s", cfg.SendHour, cfg.SendMinute, cfg.Timezone)
     
     // Initialize admin panel
-    adminPanel, err := admin.New(database, telegramBot, cfg.SessionSecret, cfg.AdminUser, cfg.AdminPass)
+    adminPanel, err := admin.New(database, telegramBot, sched, cfg.SessionSecret, cfg.AdminUser, cfg.AdminPass)
     if err != nil {
         log.Fatalf("Admin panel error: %v", err)
     }

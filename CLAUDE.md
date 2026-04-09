@@ -12,6 +12,7 @@ A Go application that automatically sends daily Bible reading messages to a Tele
 - **Image Storage**: Images are cached in a private Telegram channel; only `file_id` is stored in SQLite
 
 ## Project Structure
+```
 .
 ├── main.go                # Entry point, orchestrates all components
 ├── internal/
@@ -24,6 +25,7 @@ A Go application that automatically sends daily Bible reading messages to a Tele
 ├── data/                  # SQLite database (mounted volume in Docker)
 ├── Dockerfile
 └── docker-compose.yml
+```
 
 ## Key Implementation Details
 
