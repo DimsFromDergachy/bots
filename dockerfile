@@ -1,0 +1,54 @@
+# Stage 1: Build the Go binary
+FROM golang:1.26-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
+
+# RUN apt-get update && apt-get install -y \
+#     git \
+#     ca-certificates \
+#     tzdata \
+#     gcc \
+#     libc6-dev \
+#     && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /build
+
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+    go build -ldflags="-w -s" -o bible-bot .
+
+# Stage 2: Create minimal runtime image
+FROM alpine:3.19
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create non-root user
+RUN addgroup -g 1001 -S appgroup && \
+    adduser -u 1001 -S appuser -G appgroup
+
+# Copy binary and set ownership
+COPY --from=builder --chown=botuser:botgroup /build/templates /app/templates
+# COPY --from=builder --chown=botuser:botgroup /build/static /app/static
+COPY --from=builder --chown=appuser:appgroup /build/bible-bot /app/bible-bot
+
+# Switch to non-root user
+USER appuser
+
+# Set working directory
+WORKDIR /app
+
+# Expose port (adjust to your app's port)
+EXPOSE 8080
+
+# Run the application
+CMD ["/app/bible-bot"]
