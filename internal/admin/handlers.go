@@ -193,7 +193,6 @@ func (a *Admin) EditPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) SaveMessage(w http.ResponseWriter, r *http.Request) {
-            fmt.Printf("AuthMiddleware 9")
     month, _ := strconv.Atoi(chi.URLParam(r, "month"))
     day, _ := strconv.Atoi(chi.URLParam(r, "day"))
     
@@ -276,9 +275,17 @@ func (a *Admin) SettingsPage(w http.ResponseWriter, r *http.Request) {
     data := struct {
         Settings  map[string]string
         Timezones []TimezoneOption
+        CurrentTime time.Time
+        NextSendTime string
+        TargetChatID int64
+        StorageChatID int64
     }{
         Settings:  settings,
         Timezones: timezones,
+        CurrentTime: time.Now(),
+        NextSendTime: "NAN",
+        TargetChatID: a.bot.GetTargetChatID(),
+        StorageChatID: a.bot.GetStorageChatID(),
     }
     
     a.cache["settings.html"].ExecuteTemplate(w, "settings.html", data)
@@ -357,7 +364,7 @@ func (a *Admin) TestSend(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    if err := a.bot.SendDailyMessage(msg.Text, msg.ImageFileID); err != nil {
+    if err := a.bot.SendTestMessage(msg.Text, msg.ImageFileID); err != nil {
         fmt.Fprintf(w, "<span class='text-red-600'>Failed to send: %v</span>", err)
         return
     }

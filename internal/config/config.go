@@ -1,30 +1,30 @@
 package config
 
 import (
-	"fmt"
-	"os"
-	"strconv"
+    "fmt"
+    "os"
+    "strconv"
 )
 
 type Config struct {
     // Telegram
-    TelegramToken  string
-    TargetChatID   int64
-    StorageChatID  int64 // Private channel for image storage
-    
+    TelegramToken string
+    TargetChatID  int64
+    StorageChatID int64 // Private channel for image storage
+
     // Admin Panel
-    AdminPort      string
-    AdminUser      string
-    AdminPass      string
-    SessionSecret  string
-    
+    AdminPort     string
+    AdminUser     string
+    AdminPass     string
+    SessionSecret string
+
     // Scheduler
-    Timezone       string
-    SendHour       int
-    SendMinute     int
-    
+    Timezone   string
+    SendHour   int
+    SendMinute int
+
     // DB
-    DBPath         string
+    DBPath string
 }
 
 func Load() (*Config, error) {
@@ -37,12 +37,12 @@ func Load() (*Config, error) {
         DBPath:        "./data/bible.db",
         SessionSecret: "change-me-in-production",
     }
-    
+
     // Override from env
     if v := os.Getenv("TELEGRAM_BOT_TOKEN"); v != "" {
         cfg.TelegramToken = v
     }
-    if v := os.Getenv("TELEGRAM_CHAT_ID"); v != "" {
+    if v := os.Getenv("TELEGRAM_TARGET_CHAT_ID"); v != "" {
         id, _ := strconv.ParseInt(v, 10, 64)
         cfg.TargetChatID = id
     }
@@ -69,14 +69,14 @@ func Load() (*Config, error) {
         h, _ := strconv.Atoi(v)
         cfg.SendHour = h
     }
-    
+
     // Validate required
     if cfg.TelegramToken == "" {
         return nil, fmt.Errorf("TELEGRAM_BOT_TOKEN is required")
     }
     if cfg.TargetChatID == 0 {
-        return nil, fmt.Errorf("TELEGRAM_CHAT_ID is required")
+        return nil, fmt.Errorf("TELEGRAM_TARGET_CHAT_ID is required")
     }
-    
+
     return cfg, nil
 }

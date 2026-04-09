@@ -4,14 +4,6 @@ FROM golang:1.26-alpine AS builder
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
 
-# RUN apt-get update && apt-get install -y \
-#     git \
-#     ca-certificates \
-#     tzdata \
-#     gcc \
-#     libc6-dev \
-#     && rm -rf /var/lib/apt/lists/*
-
 # Set working directory
 WORKDIR /build
 
@@ -38,7 +30,6 @@ RUN addgroup -g 1001 -S appgroup && \
 
 # Copy binary and set ownership
 COPY --from=builder --chown=botuser:botgroup /build/templates /app/templates
-# COPY --from=builder --chown=botuser:botgroup /build/static /app/static
 COPY --from=builder --chown=appuser:appgroup /build/bible-bot /app/bible-bot
 
 # Switch to non-root user

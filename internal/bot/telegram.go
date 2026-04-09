@@ -26,17 +26,38 @@ func New(token string, targetChatID, storageChatID int64) (*Bot, error) {
     }, nil
 }
 
+func (b *Bot) GetTargetChatID() int64 {
+    return b.targetChatID
+}
+
+func (b *Bot) GetStorageChatID() int64 {
+    return b.storageChatID
+}
+
 // SendDailyMessage sends the message to the main group
 func (b *Bot) SendDailyMessage(text, fileID string) error {
+    err := b.sendMessage(b.targetChatID, text, fileID)
+    // if err != nil
+        // fmt.Println(1, fmt.Errorf("Can't send the message %s with fileId %s", text, fileID))
+    return err
+}
+
+// SendTestMessage sends the message to the storage group/chat
+func (b *Bot) SendTestMessage(text, fileID string) error {
+    return b.sendMessage(b.storageChatID, text, fileID)
+}
+
+// SendTestMessage sends the message to the storage group/chat
+func (b *Bot) sendMessage(chatID int64, text, fileID string) error {
     if fileID != "" {
-        photo := tgbotapi.NewPhoto(b.targetChatID, tgbotapi.FileID(fileID))
+        photo := tgbotapi.NewPhoto(chatID, tgbotapi.FileID(fileID))
         photo.Caption = text
         photo.ParseMode = "HTML"
         _, err := b.api.Send(photo)
         return err
     }
     
-    msg := tgbotapi.NewMessage(b.targetChatID, text)
+    msg := tgbotapi.NewMessage(chatID, text)
     msg.ParseMode = "HTML"
     _, err := b.api.Send(msg)
     return err

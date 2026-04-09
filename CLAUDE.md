@@ -56,8 +56,8 @@ users (username, password_hash)                               -- Admin authentic
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `TELEGRAM_BOT_TOKEN` | Yes | Bot token from @BotFather |
-| `TELEGRAM_CHAT_ID` | Yes | Target channel ID (negative number) |
-| `TELEGRAM_STORAGE_CHAT_ID` | Yes | Private channel for image storage |
+| `TELEGRAM_TARGET_CHAT_ID` | Yes | Target channel ID (negative number) |
+| `TELEGRAM_STORAGE_CHAT_ID` | Yes | Private channel for image storage and test messages as well |
 | `ADMIN_USER` | No | Admin username (default: `admin`) |
 | `ADMIN_PASS` | No | Admin password (default: `changeme`) |
 | `SESSION_SECRET` | No | Cookie encryption key |
