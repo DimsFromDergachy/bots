@@ -82,36 +82,22 @@ func (a *Admin) Routes() chi.Router {
 }
 
 func (a *Admin) AuthMiddleware(next http.Handler) http.Handler {
-    fmt.Printf("AuthMiddleware 1")
-
     return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-        session, err := a.store.Get(r, "bible-bot")
-
-        if err != nil {
-            fmt.Printf("Failed to save session: %v\n", err)
-            http.Error(w, "Session error", http.StatusInternalServerError)
-            return
-        }
+        session, _ := a.store.Get(r, "bible-bot")
 
         if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-            fmt.Printf("Auth check - auth: %v, ok: %v, path: %s\n", auth, ok, r.URL.Path)
             http.Redirect(w, r, "/admin/login", http.StatusSeeOther)
-            fmt.Printf("AuthMiddleware 2")
             return
         }
-        fmt.Printf("Authenticated, serving content\n")
-        fmt.Printf("AuthMiddleware 3")
         next.ServeHTTP(w, r)
     })
 }
 
 func (a *Admin) LoginPage(w http.ResponseWriter, r *http.Request) {
-            fmt.Printf("AuthMiddleware 4")
-    a.cache["login.html"].ExecuteTemplate(w, "base.html", nil)
+    a.cache["login.html"].ExecuteTemplate(w, "login.html", nil)
 }
 
 func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
-            fmt.Printf("AuthMiddleware 5")
     username := r.FormValue("username")
     password := r.FormValue("password")
     
@@ -135,7 +121,6 @@ func (a *Admin) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
-            fmt.Printf("AuthMiddleware 6")
     session, _ := a.store.Get(r, "bible-bot")
     session.Values["authenticated"] = false
     session.Save(r, w)
@@ -143,11 +128,6 @@ func (a *Admin) Logout(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Admin) Calendar(w http.ResponseWriter, r *http.Request) {
-    session, _ := a.store.Get(r, "bible-bot")
-    fmt.Printf("Calendar handler - Session values: %+v\n", session.Values)
-    
-    fmt.Printf("AuthMiddleware 7")
-
     messages, err := a.db.GetAllMessages()
     if err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -178,11 +158,10 @@ func (a *Admin) Calendar(w http.ResponseWriter, r *http.Request) {
         MonthNumbers:    monthNumbers,
     }
 
-    err = a.cache["calendar.html"].ExecuteTemplate(w, "base.html", data)
+    err = a.cache["calendar.html"].ExecuteTemplate(w, "calendar.html", data)
 }
 
 func (a *Admin) EditPage(w http.ResponseWriter, r *http.Request) {
-            fmt.Printf("AuthMiddleware 8")
     month, _ := strconv.Atoi(chi.URLParam(r, "month"))
     day, _ := strconv.Atoi(chi.URLParam(r, "day"))
     
@@ -202,7 +181,7 @@ func (a *Admin) EditPage(w http.ResponseWriter, r *http.Request) {
         Day:     day,
     }
     
-    a.cache["edit.html"].ExecuteTemplate(w, "base.html", data)
+    a.cache["edit.html"].ExecuteTemplate(w, "edit.html", data)
 }
 
 func (a *Admin) SaveMessage(w http.ResponseWriter, r *http.Request) {
