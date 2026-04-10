@@ -43,7 +43,7 @@ jobs:
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
             export TARGET_ARCH=${{ env.TARGET_ARCH }}
 
-            # Create directory if it doesn't exist
+            # Create directory if it does not exist
             mkdir -p ${{ env.APP_FOLDER }}
             cd ${{ env.APP_FOLDER }}
 
@@ -57,7 +57,14 @@ jobs:
                 git clone https://github.com/${{ github.repository }} .
             fi
 
-            # Set up .env file ??
+            # Create .env file
+            echo 'TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}' > .env
+            echo 'TELEGRAM_TARGET_CHAT_ID=${{ secrets.TELEGRAM_TARGET_CHAT_ID }}' >> .env
+            echo 'TELEGRAM_STORAGE_CHAT_ID=${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}' >> .env
+            echo 'ADMIN_USER=${{ secrets.ADMIN_USER }}' >> .env
+            echo 'ADMIN_PASS=${{ secrets.ADMIN_PASS }}' >> .env
+            echo 'SESSION_SECRET=${{ secrets.SESSION_SECRET }}' >> .env
+            echo 'TZ=Europe/Moscow' >> .env
 
             docker compose down
             docker compose up -d --build
