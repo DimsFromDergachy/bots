@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        TARGETARCH: ${TARGETARCH:-arm64}  # Uses env var or defaults to arm64
+        TARGET_ARCH: ${TARGET_ARCH:-arm64}  # Uses env var or defaults to arm64 (Apple)
       dockerfile: Dockerfile
     image: bible-bot:latest
     container_name: bible-bot
@@ -20,15 +20,15 @@ services:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_TARGET_CHAT_ID=${TELEGRAM_TARGET_CHAT_ID}
       - TELEGRAM_STORAGE_CHAT_ID=${TELEGRAM_STORAGE_CHAT_ID}
-      
-      # Optional (defaults shown)
       - ADMIN_USER=${ADMIN_USER:-admin}
-      - ADMIN_PASS=${ADMIN_PASS:-changeme}
-      - SESSION_SECRET=${SESSION_SECRET:-change-this-secret-in-production}
+      - ADMIN_PASS=${ADMIN_PASS}
+      - SESSION_SECRET=${SESSION_SECRET}
+
+      # Optional (defaults shown)
       - TZ=${TZ:-Europe/Moscow}
       
-      # Database path (optional)
-      - DB_PATH=${DB_PATH:-/app/data/bible.db}
+      # Database path (optional - FIX in config.go)
+      # - DB_PATH=${DB_PATH:-/app/data/bible.db}
     
     ports:
       # Bind to localhost only - use reverse proxy for external access
@@ -46,7 +46,7 @@ services:
     
     # Health check
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://${VM_HOST}:8080/health"]
       interval: 2m
       timeout: 3s
       retries: 3

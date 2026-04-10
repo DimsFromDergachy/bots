@@ -35,7 +35,6 @@ func Load() (*Config, error) {
         SendHour:      9,
         SendMinute:    0,
         DBPath:        "./data/bible.db",
-        SessionSecret: "change-me-in-production",
     }
 
     // Override from env
@@ -76,6 +75,14 @@ func Load() (*Config, error) {
     }
     if cfg.TargetChatID == 0 {
         return nil, fmt.Errorf("TELEGRAM_TARGET_CHAT_ID is required")
+    }
+
+    // Validate security stuff
+    if cfg.AdminPass == "" {
+        return nil, fmt.Errorf("ADMIN_PASS is required")
+    }
+    if cfg.SessionSecret == "" {
+        return nil, fmt.Errorf("SESSION_SECRET is required")
     }
 
     return cfg, nil

@@ -5,8 +5,23 @@ on:
     branches: [ main ]
 
 env:
-  TARGETARCH: amd64  # GitHub Actions runs on AMD64
+  # Build
+  TARGET_ARCH: amd64  # GitHub Actions runs on AMD64
   APP_FOLDER: ~/apps/bible-bot
+
+  # Health check
+  VM_HOST: ${{ secrets.SSH_HOST }}
+
+  # Run environment
+  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+  TELEGRAM_TARGET_CHAT_ID: ${{ secrets.TELEGRAM_TARGET_CHAT_ID }}
+  TELEGRAM_STORAGE_CHAT_ID: ${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}
+  ADMIN_USER: ${{ secrets.ADMIN_USER }}
+  ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+  SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+
+  TZ: Europe/Moscow
+#   DB_PATH: ~/apps/bible-bot/data/bible.db # TODO: A little bit risky
 
 jobs:
   deploy:
@@ -24,11 +39,10 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       
-        # TODO: Configure the app folder
       - name: Deploy with Docker
         run: |
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
-            export TARGETARCH=${{ env.TARGETARCH }}
+            export TARGET_ARCH=${{ env.TARGET_ARCH }}
 
             # Create directory if it doesn't exist
             mkdir -p ${{ env.APP_FOLDER }}
@@ -41,14 +55,15 @@ jobs:
                 git clean -dfx
             else
                 # First-time clone
-                git clone https://github.com/DimsFromDergachy/bots.git .
+                git clone https://github.com/${{ github.repository }} .
             fi
 
-            # Set up .env file!
+            # Set up .env file ??
 
             docker compose down
             docker compose up -d --build
 
+            # TODO: Clean VPS up
             # Clean docker up
             #docker system prune -f
           '
