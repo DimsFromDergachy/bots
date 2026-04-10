@@ -4,25 +4,6 @@ on:
   push:
     branches: [ main ]
 
-env:
-  # Build
-  TARGET_ARCH: amd64  # GitHub Actions runs on AMD64
-  APP_FOLDER: ~/apps/bible-bot
-
-  # Health check
-  VM_HOST: ${{ secrets.SSH_HOST }}
-
-  # Run environment
-  TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-  TELEGRAM_TARGET_CHAT_ID: ${{ secrets.TELEGRAM_TARGET_CHAT_ID }}
-  TELEGRAM_STORAGE_CHAT_ID: ${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}
-  ADMIN_USER: ${{ secrets.ADMIN_USER }}
-  ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
-  SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-
-  TZ: Europe/Moscow
-#   DB_PATH: ~/apps/bible-bot/data/bible.db # TODO: A little bit risky
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -40,8 +21,26 @@ jobs:
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       
       - name: Deploy with Docker
+        env:
+            # Build
+            TARGET_ARCH: amd64  # GitHub Actions runs on AMD64
+            APP_FOLDER: ~/apps/bible-bot
+
+            # Health check
+            VM_HOST: ${{ secrets.SSH_HOST }}
+
+            # Run environment
+            TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+            TELEGRAM_TARGET_CHAT_ID: ${{ secrets.TELEGRAM_TARGET_CHAT_ID }}
+            TELEGRAM_STORAGE_CHAT_ID: ${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}
+            ADMIN_USER: ${{ secrets.ADMIN_USER }}
+            ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
+            SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+
+            TZ: Europe/Moscow
+            #   DB_PATH: ~/apps/bible-bot/data/bible.db # TODO: A little bit risky
         run: |
-          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
+          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
             export TARGET_ARCH=${{ env.TARGET_ARCH }}
 
             # Create directory if it doesn't exist
@@ -66,4 +65,4 @@ jobs:
             # TODO: Clean VPS up
             # Clean docker up
             #docker system prune -f
-          '
+          "
