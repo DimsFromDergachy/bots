@@ -20,11 +20,13 @@ jobs:
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
       
+        # TODO: Configure the app folder
       - name: Deploy with Docker
         run: |
           ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} '
-            cd /opt/myapp || git clone https://github.com/DimsFromDergachy/bots.git /opt/myapp
-            cd /opt/myapp && git pull
+            mkdir ~/apps/bible-bot
+            cd ~/apps/bible-bot || git clone https://github.com/DimsFromDergachy/bots.git ~/apps/bible-bot
+            cd ~/apps/bible-bot && git pull
             docker compose down
             docker compose up -d --build
           '
