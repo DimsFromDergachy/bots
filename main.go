@@ -2,17 +2,18 @@ package main
 
 import (
     "context"
+    "fmt"
     "log"
     "net/http"
     "os"
     "os/signal"
     "syscall"
     "time"
-    
+
     "github.com/go-chi/chi/v5"
     "github.com/go-chi/chi/v5/middleware"
     "github.com/joho/godotenv"
-    
+
     "github.com/DimsFromDergachy/bots/internal/admin"
     "github.com/DimsFromDergachy/bots/internal/bot"
     "github.com/DimsFromDergachy/bots/internal/config"
@@ -31,6 +32,7 @@ func main() {
     }
     
     // Initialize database
+    fmt.Println("DB PATH:", cfg.DBPath)
     database, err := db.New(cfg.DBPath)
     if err != nil {
         log.Fatalf("Database error: %v", err)

@@ -27,8 +27,8 @@ services:
       # Optional (defaults shown)
       - TZ=${TZ:-Europe/Moscow}
       
-      # Database path (optional - FIX in config.go)
-      # - DB_PATH=${DB_PATH:-/app/data/bible.db}
+      # Database path (optional)
+      - DB_PATH=${DB_PATH:-/app/data/bible.db}
     
     ports:
       # Bind to localhost only - use reverse proxy for external access

@@ -68,6 +68,9 @@ func Load() (*Config, error) {
         h, _ := strconv.Atoi(v)
         cfg.SendHour = h
     }
+    if v := os.Getenv("DB_PATH"); v != "" {
+        cfg.DBPath = v
+    }
 
     // Validate required
     if cfg.TelegramToken == "" {
