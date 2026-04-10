@@ -2,6 +2,8 @@ services:
   bible-bot:
     build:
       context: .
+      args:
+        TARGETARCH: ${TARGETARCH:-arm64}  # Uses env var or defaults to arm64
       dockerfile: Dockerfile
     image: bible-bot:latest
     container_name: bible-bot

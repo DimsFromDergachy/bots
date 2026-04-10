@@ -15,7 +15,10 @@ RUN go mod download
 COPY . .
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=arm64 \
+RUN echo "GOARCH=${TARGETARCH}"
+ARG TARGETARCH
+RUN echo "GOARCH=${TARGETARCH}"
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGETARCH} \
     go build -ldflags="-w -s" -o bible-bot .
 
 # Stage 2: Create minimal runtime image
