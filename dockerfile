@@ -29,8 +29,12 @@ RUN apk add --no-cache ca-certificates tzdata
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
+# Create data directory and set permissions
+RUN mkdir -p /app/data && \
+    chown -R appuser:appgroup /app
+
 # Copy binary and set ownership
-COPY --from=builder --chown=botuser:botgroup /build/templates /app/templates
+COPY --from=builder --chown=appuser:appgroup /build/templates /app/templates
 COPY --from=builder --chown=appuser:appgroup /build/bible-bot /app/bible-bot
 
 # Switch to non-root user
