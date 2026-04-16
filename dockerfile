@@ -1,9 +1,6 @@
 # Stage 1: Build the Go binary
 FROM golang:1.26-alpine AS builder
 
-# Install build dependencies
-RUN apk add --no-cache git ca-certificates tzdata gcc musl-dev
-
 # Set working directory
 WORKDIR /build
 
@@ -14,10 +11,7 @@ RUN go mod download
 # Copy the source code
 COPY . .
 
-# Build the application
-ARG TARGET_ARCH
-RUN CGO_ENABLED=1 GOOS=linux GOARCH=${TARGET_ARCH} \
-    go build -ldflags="-w -s" -o bible-bot .
+RUN go build -o bible-bot .
 
 # Stage 2: Create minimal runtime image
 FROM alpine:3.19

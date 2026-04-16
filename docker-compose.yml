@@ -2,8 +2,6 @@ services:
   bible-bot:
     build:
       context: .
-      args:
-        TARGET_ARCH: ${TARGET_ARCH:-arm64}  # Uses env var or defaults to arm64 (Apple)
       dockerfile: Dockerfile
     image: bible-bot:latest
     container_name: bible-bot
