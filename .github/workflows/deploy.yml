@@ -3,8 +3,12 @@ name: Deploy to Server
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
   TG_CHAT: ${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}
   TG_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
 
@@ -22,88 +26,34 @@ env:
     🥺 ${{ github.actor }} - R U OK?
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      packages: write
+      contents: read
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Set up SSH
-        uses: webfactory/ssh-agent@v0.9.0
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
         with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      
-      - name: Add server to known hosts
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      
-      - name: Deploy with Docker
-        env:
-            # Build
-            TARGET_ARCH: amd64  # GitHub Actions runs on AMD64
-            APP_FOLDER: ~/apps/bible-bot
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-            # Health check
-            VM_HOST: ${{ secrets.SSH_HOST }}
+      - name: Set lowercase owner 
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-            # Run environment
-            TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-            TELEGRAM_TARGET_CHAT_ID: ${{ secrets.TELEGRAM_TARGET_CHAT_ID }}
-            TELEGRAM_STORAGE_CHAT_ID: ${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}
-            ADMIN_USER: ${{ secrets.ADMIN_USER }}
-            ADMIN_PASS: ${{ secrets.ADMIN_PASS }}
-            SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
-
-            TZ: Europe/Moscow
-            DB_PATH: /app/data/bible.db # TODO: A little bit risky
-        run: |
-          ssh ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} "
-            export TARGET_ARCH=${{ env.TARGET_ARCH }}
-
-            # Create directory if it doesn't exist
-            mkdir -p ${{ env.APP_FOLDER }}
-            cd ${{ env.APP_FOLDER }}
-
-            # Pull latest code (if git repo exists)
-            if [ -d .git ]; then
-                git fetch origin
-                git reset origin/main --hard
-                git clean -dfx
-            else
-                # First-time clone
-                git clone https://github.com/${{ github.repository }} .
-            fi
-
-            mkdir -p data
-
-            # Create .env file
-            echo 'TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_BOT_TOKEN }}' > .env
-            echo 'TELEGRAM_TARGET_CHAT_ID=${{ secrets.TELEGRAM_TARGET_CHAT_ID }}' >> .env
-            echo 'TELEGRAM_STORAGE_CHAT_ID=${{ secrets.TELEGRAM_STORAGE_CHAT_ID }}' >> .env
-            echo 'ADMIN_USER=${{ secrets.ADMIN_USER }}' >> .env
-            echo 'ADMIN_PASS=${{ secrets.ADMIN_PASS }}' >> .env
-            echo 'SESSION_SECRET=${{ secrets.SESSION_SECRET }}' >> .env
-            echo 'TZ=Europe/Moscow' >> .env
-            echo 'DB_PATH=${{ env.DB_PATH }}' >> .env
-
-            docker compose down
-            docker compose up -d --build
-
-            # TODO: Clean VPS up
-            # Clean docker up
-            #docker system prune -f
-          "
-
-
-      - name: Send FAILURE message
-        if: ${{ failure() }}
-        run: |
-            curl --header 'Content-Type: application/json' \
-                --data '{"chat_id":"${{ env.TG_CHAT }}","text":"${{ env.TG_FAILURE_MESSAGE }}"}' \
-                'https://api.telegram.org/bot${{ env.TG_TOKEN }}/sendMessage'
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ env.OWNER_LC }}/bible-bot:latest
 
   notify:
-    needs: deploy
+    needs: build
     runs-on: ubuntu-latest
     steps:
     - name: Send SUCCESS message
